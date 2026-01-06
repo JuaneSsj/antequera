@@ -1,0 +1,58 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Training Home</title>
+    <link rel="stylesheet" href="{% static 'core/style.css' %}">
+</head>
+
+<body>
+    <nav>
+        <div class="container nav-content">
+            <a href="{% url 'home' %}" class="logo">⚡ Training Home</a>
+            <div class="nav-links">
+                <a href="{% url 'home' %}">Dashboard</a>
+                <a href="{% url 'client_list' %}">Clientes</a>
+                <a href="{% url 'trainer_detail' %}">Entrenador</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mt-4">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer class="container mt-4" style="border-top: 1px solid var(--border); padding-top: 2rem; margin-top: 4rem;">
+        <div class="row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+            <div>
+                <h3>Sobre Nosotros</h3>
+                <p>{{ business_profile.description|linebreaks }}</p>
+                <a href="{% url 'business_profile_update' %}"
+                    style="font-size: 0.8rem; color: var(--text-secondary);">Editar Información de la Empresa</a>
+            </div>
+            <div style="text-align: right;">
+                <h3>Síguenos</h3>
+                <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                    {% if business_profile.instagram_profile %}
+                    <a href="{{ business_profile.instagram_profile }}" target="_blank" class="btn"
+                        style="background: #E1306C; color: white;">Instagram</a>
+                    {% endif %}
+                    {% if business_profile.tiktok_profile %}
+                    <a href="{{ business_profile.tiktok_profile }}" target="_blank" class="btn"
+                        style="background: #000000; color: white; border: 1px solid #333;">TikTok</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="text-center"
+            style="padding: 1rem 0; color: var(--text-secondary); font-size: 0.9rem; border-top: 1px solid rgba(255,255,255,0.05);">
+            <p>&copy; {% now "Y" %} Training Home. Potenciando resultados.</p>
+        </div>
+    </footer>
+</body>
+
+</html>

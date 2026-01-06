@@ -1,0 +1,15 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto;">
+    <h2>Subir Foto de Progreso</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="flex mt-4">
+            <button type="submit" class="btn">Subir Foto</button>
+            <button type="button" class="btn btn-secondary" onclick="history.back()">Cancelar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

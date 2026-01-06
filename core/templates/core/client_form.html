@@ -1,0 +1,39 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="card" style="max-width: 800px; margin: 0 auto;">
+    <h2>
+        {% if 'update' in request.resolver_match.url_name %}
+        Editar
+        {% else %}
+        Nuevo
+        {% endif %}
+        Registro
+    </h2>
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        {% for field in form %}
+        <div class="form-group">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}
+            <small style="color: var(--text-secondary); display: block; margin-top: 0.25rem;">{{ field.help_text
+                }}</small>
+            {% endif %}
+            {% if field.errors %}
+            <div style="color: var(--danger); font-size: 0.9rem; margin-top: 0.25rem;">
+                {{ field.errors }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <div class="flex" style="margin-top: 2rem;">
+            <button type="submit" class="btn">Guardar</button>
+            <button type="button" class="btn btn-secondary" onclick="history.back()">Cancelar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

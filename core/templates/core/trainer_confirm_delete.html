@@ -1,0 +1,18 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto; text-align: center;">
+    <h2 style="color: var(--danger);">Eliminar Perfil</h2>
+    <p class="mb-4">¿Estás seguro que deseas eliminar tu información de entrenador? Esta acción no se puede deshacer.
+    </p>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="flex" style="justify-content: center;">
+            <button type="submit" class="btn" style="background-color: var(--danger); color: white;">Sí,
+                Eliminar</button>
+            <a href="{% url 'trainer_detail' %}" class="btn btn-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
