@@ -14,9 +14,35 @@
         <div class="container nav-content">
             <a href="{% url 'home' %}" class="logo">⚡ Training Home</a>
             <div class="nav-links">
-                <a href="{% url 'home' %}">Dashboard</a>
-                <a href="{% url 'client_list' %}">Clientes</a>
-                <a href="{% url 'trainer_detail' %}">Entrenador</a>
+                {% if user.is_authenticated %}
+                    <a href="{% url 'home' %}">Dashboard</a>
+                    {% with rol=user.perfil_app.rol.nombre_rol|lower %}
+                    
+                    {% if 'entrenador' in rol or 'admin' in rol or user.is_superuser %}
+                        <a href="{% url 'client_list' %}">Clientes</a>
+                        <a href="{% url 'trainer_agenda' %}">Agenda (Entrenador)</a>
+                        {% if 'entrenador' in rol %}
+                            <a href="{% url 'trainer_detail' %}">Mi Perfil</a>
+                        {% elif 'admin' in rol or user.is_superuser %}
+                            <a href="{% url 'trainer_detail' %}">Entrenadores</a>
+                        {% endif %}
+                    {% endif %}
+                    
+                    {% if 'cliente' in rol %}
+                        <a href="{% url 'trainer_detail' %}">Mi Entrenador</a>
+                        <a href="{% url 'client_booking' %}">Mi Agenda / Reservar</a>
+                    {% endif %}
+                    
+                    {% endwith %}
+                    
+                    <span style="color: #4ade80; margin-left: 1rem; margin-right: 1rem;">👤 {{ user.username }}</span>
+                    <form method="POST" action="{% url 'logout' %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" style="background:none; border:none; color: #f87171; cursor:pointer; font-size:inherit; padding:0;">Cerrar Sesión</button>
+                    </form>
+                {% else %}
+                    <a href="{% url 'login' %}" style="margin-left: 1rem; color: #4ade80;">Iniciar Sesión</a>
+                {% endif %}
             </div>
         </div>
     </nav>

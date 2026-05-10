@@ -2,11 +2,8 @@
 
 {% block content %}
 <div class="flex justify-between mb-4">
-    <h1>Mis Clientes</h1>
-    <div class="flex" style="gap: 1rem;">
-        <a href="{% url 'client_archive_list' %}" class="btn btn-secondary">Clientes Archivados</a>
-        <a href="{% url 'client_create' %}" class="btn">Nuevo Cliente</a>
-    </div>
+    <h1>Clientes Archivados</h1>
+    <a href="{% url 'client_list' %}" class="btn btn-secondary">Ver Clientes Activos</a>
 </div>
 
 <div class="card">
@@ -17,7 +14,6 @@
                     <th>Nombre</th>
                     <th>Edad</th>
                     <th>Objetivo</th>
-                    <th>Entrenador</th>
                     <th>Último Control</th>
                     <th>Acciones</th>
                 </tr>
@@ -42,7 +38,6 @@
                     </td>
                     <td>{{ client.age }} años</td>
                     <td>{{ client.main_goal|truncatechars:30 }}</td>
-                    <td>{{ client.entrenador_asignado.name|default:"Sin asignar" }}</td>
                     <td>
                         {% if client.measurements.exists %}
                         {{ client.measurements.last.date }}
@@ -53,15 +48,13 @@
                     <td>
                         <a href="{% url 'client_detail' client.pk %}" class="btn btn-secondary"
                             style="padding: 0.5rem 1rem; font-size: 0.8rem;">Ver Detalles</a>
-                        {% if user.is_superuser or user.perfil_app.rol.nombre_rol != 'Cliente' %}
-                        <a href="{% url 'client_delete' client.pk %}" class="btn"
-                            style="padding: 0.5rem 1rem; font-size: 0.8rem; background-color: var(--danger); color: white;">Archivar</a>
-                        {% endif %}
+                        <a href="{% url 'client_archive_toggle' client.pk %}" class="btn"
+                            style="padding: 0.5rem 1rem; font-size: 0.8rem; background-color: var(--accent);">Reactivar</a>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" class="text-center" style="padding: 2rem;">No hay clientes registrados.</td>
+                    <td colspan="5" class="text-center" style="padding: 2rem;">No hay clientes archivados.</td>
                 </tr>
                 {% endfor %}
             </tbody>

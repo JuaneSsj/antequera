@@ -68,7 +68,17 @@ Para acceder al panel de administración de Django:
 python manage.py createsuperuser
 ```
 
-### 7. Ejecutar el Servidor
+### 7. Cargar las rutas y permisos iniciales
+
+Ejecuta el script de seed para registrar las rutas y permisos que usa el middleware del proyecto.
+
+```bash
+python seed_routes.py
+```
+
+> Si ya creaste el superusuario, el script intentará vincularlo a un perfil de Admin para otorgarle acceso completo.
+
+### 8. Ejecutar el Servidor
 
 Inicia el servidor de desarrollo.
 

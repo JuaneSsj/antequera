@@ -17,8 +17,11 @@
             <p style="color: var(--text-secondary); font-size: 1.1rem;">{{ client.age }} años • {{ client.city }}</p>
             <div class="flex" style="margin-top: 1rem;">
                 <a href="{% url 'client_update' client.pk %}" class="btn btn-secondary">Editar Perfil</a>
+                {% if user.is_superuser or user.perfil_app.rol.nombre_rol != 'Cliente' %}
                 <a href="{% url 'measurement_create' client.pk %}" class="btn">Nueva Medición</a>
                 <a href="{% url 'image_create' client.pk %}" class="btn btn-secondary">Agregar Foto</a>
+                <a href="{% url 'client_delete' client.pk %}" class="btn" style="background-color: var(--danger); color: white;">Archivar Cliente</a>
+                {% endif %}
             </div>
         </div>
     </div>

@@ -2,7 +2,51 @@
 
 {% block content %}
 <div style="max-width: 1200px; margin: 0 auto;">
-    {% if trainer %}
+    {% if is_admin_view %}
+    <!-- Admin view: List all trainers -->
+    <div style="margin-bottom: 4rem;">
+        <h1 style="font-size: 3rem; margin-bottom: 2rem;">Todos los Entrenadores</h1>
+    </div>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Email</th>
+                        <th>Teléfono</th>
+                        <th>Clientes Asignados</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trainer in trainers_list %}
+                    <tr>
+                        <td>{{ trainer.name }}</td>
+                        <td>{{ trainer.email|default:"--" }}</td>
+                        <td>{{ trainer.phone|default:"--" }}</td>
+                        <td>{{ trainer.clientes_asignados.count }}</td>
+                        <td>
+                            <a href="?trainer={{ trainer.pk }}" class="btn btn-secondary">Ver Detalles</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center">No hay entrenadores registrados.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% elif trainer %}
+    <div style="margin-bottom: 4rem;">
+        {% if user.perfil_app.rol.nombre_rol == 'Cliente' %}
+        <h1 style="font-size: 3rem; margin-bottom: 2rem;">Mi Entrenador</h1>
+        {% elif user.perfil_app.rol.nombre_rol == 'Entrenador' %}
+        <h1 style="font-size: 3rem; margin-bottom: 2rem;">Información Personal</h1>
+        {% else %}
+        <h1 style="font-size: 3rem; margin-bottom: 2rem;">Entrenador</h1>
+        {% endif %}
+    </div>
     <div class="row"
         style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 4rem; align-items: start; background: var(--bg-card); padding: 3rem; border-radius: 16px; border: 1px solid var(--border);">
         <!-- Column 1: Image & Contact -->
@@ -64,21 +108,89 @@
                 {{ trainer.bio|linebreaks }}
             </div>
 
+            {% if user.is_superuser or user.perfil_app.rol.nombre_rol != 'Cliente' %}
             <div class="flex" style="gap: 1rem;">
                 <a href="{% url 'trainer_update' %}" class="btn"
                     style="padding: 1rem 2rem; font-size: 1.1rem;">Actualizar Perfil</a>
                 <a href="{% url 'trainer_delete' %}" class="btn btn-secondary"
                     style="color: var(--danger); border-color: var(--danger); padding: 1rem 2rem;">Eliminar Perfil</a>
             </div>
+            {% endif %}
         </div>
     </div>
     {% else %}
     <div style="padding: 5rem 0; text-align: center;">
-        <h2 style="margin-bottom: 1rem; font-size: 2.5rem;">Perfil de Entrenador No Configurado</h2>
-        <p style="color: var(--text-secondary); margin-bottom: 2rem; font-size: 1.2rem;">Añade tu información para que
-            tus clientes te conozcan mejor.</p>
+        <h2 style="margin-bottom: 1rem; font-size: 2.5rem;">Entrenador No Configurado</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 2rem; font-size: 1.2rem;">No hay información disponible del entrenador.</p>
+        
+        {% if user.is_superuser or user.perfil_app.rol.nombre_rol != 'Cliente' %}
         <a href="{% url 'trainer_create' %}" class="btn" style="padding: 1rem 3rem; font-size: 1.2rem;">Agregar
             Información</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if is_admin_view %}
+    <div class="card" style="margin-top: 4rem;">
+        <h2>Gestión de Clientes</h2>
+        <div class="flex justify-between mb-4">
+            <p>Total de clientes: {{ total_clients }}</p>
+            <a href="{% url 'client_list' %}" class="btn">Ver Todos los Clientes</a>
+        </div>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Entrenador</th>
+                        <th>Cliente</th>
+                        <th>Edad</th>
+                        <th>Objetivo</th>
+                        <th>Última Medición</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trainer in trainers_list %}
+                        {% for client in trainer.clientes_asignados.all %}
+                        <tr>
+                            <td>{{ trainer.name }}</td>
+                            <td>
+                                <a href="{% url 'client_detail' client.pk %}"
+                                    style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-primary);">
+                                    {% if client.profile_picture %}
+                                    <img src="{{ client.profile_picture.url }}"
+                                        style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover;">
+                                    {% else %}
+                                    <div style="width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #000; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.8rem;">
+                                        {{ client.full_name|first }}
+                                    </div>
+                                    {% endif %}
+                                    {{ client.full_name }}
+                                </a>
+                            </td>
+                            <td>{{ client.age }} años</td>
+                            <td>{{ client.main_goal|truncatechars:30 }}</td>
+                            <td>
+                                {% if client.measurements.exists %}
+                                {{ client.measurements.last.date }}
+                                {% else %}
+                                <span style="color: var(--text-secondary);">Sin mediciones</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'client_detail' client.pk %}" class="btn btn-secondary" style="padding: 0.3rem 0.8rem; font-size: 0.7rem;">Ver</a>
+                                <a href="{% url 'client_delete' client.pk %}" class="btn" style="padding: 0.3rem 0.8rem; font-size: 0.7rem; background-color: var(--danger); color: white;">Archivar</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 1rem;">Este entrenador no tiene clientes asignados.</td>
+                        </tr>
+                        {% endfor %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
     {% endif %}
 </div>

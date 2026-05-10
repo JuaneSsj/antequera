@@ -1,13 +1,67 @@
 from django.db import models
 from datetime import date
+from django.contrib.auth.models import User
+
+# ==========================================
+# MÓDULO DE SEGURIDAD Y ACCESOS
+# ==========================================
+
+class Role(models.Model):
+    nombre_rol = models.CharField("Nombre del Rol", max_length=50)
+
+    def __str__(self):
+        return self.nombre_rol
+
+class Profile(models.Model):
+    usuario = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True, related_name='perfil_app')
+    nombre_per = models.CharField("Nombre del Perfil", max_length=50)
+    rol = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='perfiles')
+
+    def __str__(self):
+        return f"{self.nombre_per} ({self.rol.nombre_rol})"
+
+class Route(models.Model):
+    nombre_rut = models.CharField("Nombre de Ruta", max_length=50)
+    url_rut = models.CharField("URL", max_length=100)
+    nodo_rut = models.CharField("Nodo", max_length=1)
+    padre_rut = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='subrutas')
+    orden_rut = models.PositiveSmallIntegerField("Orden", null=True, blank=True)
+
+    def __str__(self):
+        return self.nombre_rut
+
+class Access(models.Model):
+    ACCESS_CHOICES = [
+        ('S', 'Sí'),
+        ('N', 'No'),
+    ]
+    perfil = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='accesos')
+    ruta = models.ForeignKey(Route, on_delete=models.CASCADE, related_name='accesos')
+    inserta_acc = models.CharField("Permiso Insertar", max_length=1, choices=ACCESS_CHOICES, default='N')
+    update_acc = models.CharField("Permiso Actualizar", max_length=1, choices=ACCESS_CHOICES, default='N')
+    delete_acc = models.CharField("Permiso Borrar", max_length=1, choices=ACCESS_CHOICES, default='N')
+
+    class Meta:
+        unique_together = ('perfil', 'ruta')
+
+    def __str__(self):
+        return f"Acceso: {self.perfil} -> {self.ruta}"
+
+# ==========================================
+# ENTRENADORES Y CLIENTES
+# ==========================================
 
 class Trainer(models.Model):
+    perfil = models.ForeignKey(Profile, on_delete=models.SET_NULL, null=True, blank=True, related_name='trainers')
     name = models.CharField(max_length=200)
     bio = models.TextField(blank=True)
     contact_info = models.TextField(help_text="Dirección, Ciudad, etc.", blank=True)
     email = models.EmailField("Correo Electrónico", max_length=254, blank=True)
     phone = models.CharField("Teléfono / Celular", max_length=20, blank=True)
     profile_picture = models.ImageField(upload_to='trainers/', blank=True, null=True)
+
+    def __str__(self):
+        return self.name
 
     @property
     def age(self):
@@ -19,10 +73,15 @@ class Client(models.Model):
         ('M', 'Masculino'),
         ('F', 'Femenino'),
     ]
+    
+    perfil = models.ForeignKey(Profile, on_delete=models.SET_NULL, null=True, blank=True, related_name='clientes')
+    entrenador_asignado = models.ForeignKey(Trainer, on_delete=models.SET_NULL, null=True, blank=True, related_name='clientes_asignados')
+
     # DATOS GENERALES
     full_name = models.CharField("Nombre Completo", max_length=200)
     birth_date = models.DateField("Fecha de nacimiento")
     gender = models.CharField("Género", max_length=10, choices=GENDER_CHOICES, default='M')
+    is_active = models.BooleanField("Activo", default=True)
     city = models.CharField("Ciudad", max_length=100, blank=True)
     address = models.CharField("Dirección", max_length=255, blank=True)
     phone = models.CharField("Teléfono", max_length=20, blank=True)
@@ -169,3 +228,31 @@ class BusinessProfile(models.Model):
 
     def __str__(self):
         return "Perfil de la Empresa"
+
+# ==========================================
+# AGENDA Y NOTIFICACIONES
+# ==========================================
+
+class TrainingSession(models.Model):
+    ESTADO_CHOICES = [
+        ('Pendiente', 'Pendiente'),
+        ('Realizado', 'Realizado'),
+        ('Cancelado', 'Cancelado'),
+    ]
+    cliente = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='sesiones')
+    entrenador = models.ForeignKey(Trainer, on_delete=models.CASCADE, related_name='sesiones')
+    fecha_hora = models.DateTimeField("Fecha y Hora de la Sesión")
+    estado = models.CharField("Estado", max_length=20, choices=ESTADO_CHOICES, default='Pendiente')
+
+    def __str__(self):
+        return f"Sesión: {self.cliente.full_name} con {self.entrenador.name} - {self.fecha_hora.strftime('%d/%m/%Y %H:%M')}"
+
+class NotificationLog(models.Model):
+    sesion = models.ForeignKey(TrainingSession, on_delete=models.CASCADE, related_name='notificaciones')
+    fecha_programada = models.DateTimeField("Fecha Programada (12h antes)")
+    estado_envio = models.BooleanField("Enviado", default=False)
+    tipo_notif = models.CharField("Tipo de Notificación", max_length=20, default='E-mail')
+
+    def __str__(self):
+        return f"Notificación {'Enviada' if self.estado_envio else 'Pendiente'} para sesión {self.sesion.id}"
+
