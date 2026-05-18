@@ -12,7 +12,15 @@ class BusinessProfileForm(forms.ModelForm):
 
 class BaseUserForm(forms.ModelForm):
     username = forms.CharField(max_length=150, required=False, help_text="Déjalo en blanco para autogenerar el usuario.")
-    password = forms.CharField(widget=forms.PasswordInput, required=False, help_text="Ingresa una contraseña. Si se deja en blanco, será 'usuario123'.")
+    password = forms.CharField(widget=forms.PasswordInput(render_value=False), required=False, help_text="Ingresa una contraseña para actualizarla. Déjalo en blanco para mantener la actual.")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        instance = getattr(self, 'instance', None)
+        if instance and instance.pk and getattr(instance, 'perfil', None) and getattr(instance.perfil, 'usuario', None):
+            self.fields['username'].initial = instance.perfil.usuario.username
+            self.fields['username'].help_text = "Puedes modificar el nombre de usuario actual aquí."
+
 
     def clean_username(self):
         uname = self.cleaned_data.get('username')
@@ -144,4 +152,15 @@ class ClientImageForm(forms.ModelForm):
         fields = ['image', 'date', 'notes']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+from .models import TrainerSchedule
+
+class TrainerScheduleForm(forms.ModelForm):
+    class Meta:
+        model = TrainerSchedule
+        fields = ['day_of_week', 'start_time', 'end_time']
+        widgets = {
+            'start_time': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
+            'end_time': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
         }

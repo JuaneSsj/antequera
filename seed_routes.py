@@ -25,7 +25,9 @@ def seed_routes():
         {"nombre": "Crear Cliente", "url": "/clients/new/"},
         {"nombre": "Agenda Entrenador", "url": "/agenda/trainer/"},
         {"nombre": "Reservar Cliente", "url": "/agenda/client/"},
+        {"nombre": "Estado Sesión", "url": "/agenda/session/"},
         {"nombre": "Detalle Entrenador", "url": "/trainer/"},
+        {"nombre": "Horario Entrenador", "url": "/trainer/schedule/"},
         {"nombre": "Información del Negocio", "url": "/business/"},
     ]
 
@@ -55,8 +57,8 @@ def seed_routes():
         print("Accesos completos dados al Admin principal.")
 
     # Asignar accesos a perfiles existentes según su rol
-    trainer_route_urls = ['/', '/clients/', '/clients/new/', '/agenda/trainer/', '/clients/archive/', '/trainer/']
-    cliente_route_urls = ['/', '/agenda/client/', '/trainer/']
+    trainer_route_urls = ['/', '/clients/', '/clients/new/', '/agenda/trainer/', '/agenda/session/', '/clients/archive/', '/trainer/', '/trainer/schedule/']
+    cliente_route_urls = ['/', '/agenda/client/', '/agenda/session/', '/trainer/']
 
     for perfil in Profile.objects.filter(rol=entrenador_rol):
         for ruta_url in trainer_route_urls:
@@ -69,7 +71,8 @@ def seed_routes():
         for ruta_url in cliente_route_urls:
             ruta = Route.objects.filter(url_rut=ruta_url).first()
             if ruta:
-                ensure_access(perfil, ruta, inserta='N', update='N', delete='N')
+                update_perm = 'S' if ruta_url == '/agenda/session/' else 'N'
+                ensure_access(perfil, ruta, inserta='N', update=update_perm, delete='N')
 
     print("Accesos básicos asignados a entrenadores y clientes existentes.")
 

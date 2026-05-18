@@ -2,8 +2,9 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, TemplateView, DeleteView
 from django.urls import reverse_lazy
 from django.contrib.auth.models import User
-from .models import Client, Measurement, Trainer, ClientImage, BusinessProfile, Profile, Role, TrainingSession
-from .forms import ClientForm, MeasurementForm, TrainerForm, ClientImageForm, BusinessProfileForm
+from .models import Client, Measurement, Trainer, ClientImage, BusinessProfile, Profile, Role, TrainingSession, TrainerSchedule
+from .forms import ClientForm, MeasurementForm, TrainerForm, ClientImageForm, BusinessProfileForm, TrainerScheduleForm
+from .choices import SESSION_STATUS_CHOICES
 from datetime import datetime, timedelta, time, date
 class BusinessProfileUpdateView(UpdateView):
     model = BusinessProfile
@@ -265,8 +266,14 @@ class TrainerAgendaView(TemplateView):
         if hasattr(self.request.user, 'perfil_app'):
             trainer = self.request.user.perfil_app.trainers.first()
             if trainer:
+                from django.utils import timezone
+                now = timezone.now()
+                # Update past pending sessions to Finalizado
+                TrainingSession.objects.filter(entrenador=trainer, estado='Pendiente', fecha_hora__lt=now).update(estado='Finalizado')
+
                 sesiones = TrainingSession.objects.filter(entrenador=trainer).order_by('fecha_hora')
                 context['sesiones'] = sesiones
+                context['status_choices'] = SESSION_STATUS_CHOICES
         return context
 
 
@@ -288,6 +295,11 @@ class ClientBookingView(TemplateView):
         if hasattr(self.request.user, 'perfil_app'):
              client = self.request.user.perfil_app.clientes.first()
              if client:
+                  from django.utils import timezone
+                  now = timezone.now()
+                  # Update past pending sessions to Finalizado
+                  TrainingSession.objects.filter(cliente=client, estado='Pendiente', fecha_hora__lt=now).update(estado='Finalizado')
+
                   context['mis_sesiones'] = TrainingSession.objects.filter(cliente=client).order_by('-fecha_hora')
                   if client.entrenador_asignado:
                       entrenador = client.entrenador_asignado
@@ -297,19 +309,32 @@ class ClientBookingView(TemplateView):
                       sesiones_ocupadas = TrainingSession.objects.filter(
                           entrenador=entrenador,
                           fecha_hora__range=(start_of_day, end_of_day),
-                          estado__in=['Pendiente', 'Realizado']
+                          estado__in=['Pendiente', 'Finalizado']
                       ).values_list('fecha_hora', flat=True)
                       
-                      horas_ocupadas_str = [s.strftime('%H:%M') for s in sesiones_ocupadas]
+                      horas_ocupadas_str = [timezone.localtime(s).strftime('%H:%M') if timezone.is_aware(s) else s.strftime('%H:%M') for s in sesiones_ocupadas]
                       
-                      hora_inicio = 8
-                      hora_fin = 20
-                      for h in range(hora_inicio, hora_fin):
-                          hora_str = f"{h:02d}:00"
-                          if hora_str not in horas_ocupadas_str:
-                              horas_disponibles.append(hora_str)
+                      # Generar horas usando la disponibilidad del entrenador
+                      schedules = TrainerSchedule.objects.filter(entrenador=entrenador, day_of_week=fecha.weekday())
                       
-                      context['horas_disponibles'] = horas_disponibles
+                      for schedule in schedules:
+                          current_time = datetime.combine(fecha, schedule.start_time)
+                          end_datetime = datetime.combine(fecha, schedule.end_time)
+                          
+                          # Make aware if USE_TZ is active
+                          if timezone.is_naive(current_time):
+                              current_time = timezone.make_aware(current_time)
+                          if timezone.is_naive(end_datetime):
+                              end_datetime = timezone.make_aware(end_datetime)
+
+                          while current_time < end_datetime:
+                              hora_str = current_time.strftime('%H:%M')
+                              if hora_str not in horas_ocupadas_str:
+                                  if current_time > now:
+                                      horas_disponibles.append(hora_str)
+                              current_time += timedelta(hours=1)
+                      
+                      context['horas_disponibles'] = sorted(list(set(horas_disponibles)))
                       context['entrenador'] = entrenador
         return context
 
@@ -324,7 +349,11 @@ class ClientBookingView(TemplateView):
                   hora_parts = hora_str.split(':')
                   dt = datetime.combine(fecha, time(int(hora_parts[0]), int(hora_parts[1])))
                   
-                  if not TrainingSession.objects.filter(entrenador=client.entrenador_asignado, fecha_hora=dt, estado__in=['Pendiente', 'Realizado']).exists():
+                  from django.utils import timezone
+                  if timezone.is_naive(dt):
+                      dt = timezone.make_aware(dt)
+
+                  if not TrainingSession.objects.filter(entrenador=client.entrenador_asignado, fecha_hora=dt, estado__in=['Pendiente', 'Finalizado']).exists():
                       TrainingSession.objects.create(
                           cliente=client,
                           entrenador=client.entrenador_asignado,
@@ -332,4 +361,65 @@ class ClientBookingView(TemplateView):
                           estado='Pendiente'
                       )
         return redirect('client_booking')
+
+
+class SessionStatusUpdateView(View):
+    def post(self, request, pk):
+        sesion = get_object_or_404(TrainingSession, pk=pk)
+        nuevo_estado = request.POST.get('estado')
+        if nuevo_estado in dict(SESSION_STATUS_CHOICES):
+            sesion.estado = nuevo_estado
+            sesion.save()
+        return redirect('trainer_agenda')
+
+
+class ClientSessionCancelView(View):
+    def post(self, request, pk):
+        sesion = get_object_or_404(TrainingSession, pk=pk)
+        if hasattr(request.user, 'perfil_app'):
+             client = request.user.perfil_app.clientes.first()
+             if sesion.cliente == client and sesion.estado == 'Pendiente':
+                 sesion.estado = 'Cancelado'
+                 sesion.save()
+        return redirect('client_booking')
+
+
+class TrainerScheduleListView(ListView):
+    model = TrainerSchedule
+    template_name = 'core/trainer_schedule_list.html'
+    context_object_name = 'schedules'
+
+    def get_queryset(self):
+        if hasattr(self.request.user, 'perfil_app'):
+            trainer = self.request.user.perfil_app.trainers.first()
+            if trainer:
+                return TrainerSchedule.objects.filter(entrenador=trainer)
+        return TrainerSchedule.objects.none()
+
+
+class TrainerScheduleCreateView(CreateView):
+    model = TrainerSchedule
+    form_class = TrainerScheduleForm
+    template_name = 'core/trainer_schedule_form.html'
+    success_url = reverse_lazy('trainer_schedule_list')
+
+    def form_valid(self, form):
+        if hasattr(self.request.user, 'perfil_app'):
+            trainer = self.request.user.perfil_app.trainers.first()
+            if trainer:
+                form.instance.entrenador = trainer
+        return super().form_valid(form)
+
+
+class TrainerScheduleDeleteView(DeleteView):
+    model = TrainerSchedule
+    template_name = 'core/trainer_schedule_confirm_delete.html'
+    success_url = reverse_lazy('trainer_schedule_list')
+
+    def get_queryset(self):
+        if hasattr(self.request.user, 'perfil_app'):
+            trainer = self.request.user.perfil_app.trainers.first()
+            if trainer:
+                return TrainerSchedule.objects.filter(entrenador=trainer)
+        return TrainerSchedule.objects.none()
 

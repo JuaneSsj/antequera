@@ -233,16 +233,13 @@ class BusinessProfile(models.Model):
 # AGENDA Y NOTIFICACIONES
 # ==========================================
 
+from .choices import SESSION_STATUS_CHOICES
+
 class TrainingSession(models.Model):
-    ESTADO_CHOICES = [
-        ('Pendiente', 'Pendiente'),
-        ('Realizado', 'Realizado'),
-        ('Cancelado', 'Cancelado'),
-    ]
     cliente = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='sesiones')
     entrenador = models.ForeignKey(Trainer, on_delete=models.CASCADE, related_name='sesiones')
     fecha_hora = models.DateTimeField("Fecha y Hora de la Sesión")
-    estado = models.CharField("Estado", max_length=20, choices=ESTADO_CHOICES, default='Pendiente')
+    estado = models.CharField("Estado", max_length=20, choices=SESSION_STATUS_CHOICES, default='Pendiente')
 
     def __str__(self):
         return f"Sesión: {self.cliente.full_name} con {self.entrenador.name} - {self.fecha_hora.strftime('%d/%m/%Y %H:%M')}"
@@ -256,3 +253,23 @@ class NotificationLog(models.Model):
     def __str__(self):
         return f"Notificación {'Enviada' if self.estado_envio else 'Pendiente'} para sesión {self.sesion.id}"
 
+class TrainerSchedule(models.Model):
+    DAY_CHOICES = [
+        (0, 'Lunes'),
+        (1, 'Martes'),
+        (2, 'Miércoles'),
+        (3, 'Jueves'),
+        (4, 'Viernes'),
+        (5, 'Sábado'),
+        (6, 'Domingo'),
+    ]
+    entrenador = models.ForeignKey(Trainer, on_delete=models.CASCADE, related_name='schedules')
+    day_of_week = models.IntegerField("Día de la semana", choices=DAY_CHOICES)
+    start_time = models.TimeField("Hora de inicio")
+    end_time = models.TimeField("Hora de fin")
+
+    class Meta:
+        ordering = ['day_of_week', 'start_time']
+
+    def __str__(self):
+        return f"{self.get_day_of_week_display()} de {self.start_time.strftime('%H:%M')} a {self.end_time.strftime('%H:%M')}"

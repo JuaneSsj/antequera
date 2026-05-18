@@ -19,4 +19,9 @@ urlpatterns = [
     path('business/edit/', views.BusinessProfileUpdateView.as_view(), name='business_profile_update'),
     path('agenda/trainer/', views.TrainerAgendaView.as_view(), name='trainer_agenda'),
     path('agenda/client/', views.ClientBookingView.as_view(), name='client_booking'),
+    path('agenda/session/<int:pk>/status/', views.SessionStatusUpdateView.as_view(), name='session_status_update'),
+    path('agenda/session/<int:pk>/cancel/', views.ClientSessionCancelView.as_view(), name='client_session_cancel'),
+    path('trainer/schedule/', views.TrainerScheduleListView.as_view(), name='trainer_schedule_list'),
+    path('trainer/schedule/new/', views.TrainerScheduleCreateView.as_view(), name='trainer_schedule_create'),
+    path('trainer/schedule/<int:pk>/delete/', views.TrainerScheduleDeleteView.as_view(), name='trainer_schedule_delete'),
 ]
