@@ -23,6 +23,7 @@ def seed_routes():
         {"nombre": "Lista de Clientes", "url": "/clients/"},
         {"nombre": "Detalle/Edición Cliente", "url": "/clients/"},  # Cubre /clients/1/
         {"nombre": "Crear Cliente", "url": "/clients/new/"},
+        {"nombre": "Archivo de Clientes", "url": "/clients/archive/"},
         {"nombre": "Agenda Entrenador", "url": "/agenda/trainer/"},
         {"nombre": "Reservar Cliente", "url": "/agenda/client/"},
         {"nombre": "Estado Sesión", "url": "/agenda/session/"},
@@ -39,7 +40,7 @@ def seed_routes():
     print("Rutas creadas en Base de Datos.")
 
     def ensure_access(perfil, ruta, inserta='N', update='N', delete='N'):
-        Access.objects.get_or_create(
+        access, created = Access.objects.get_or_create(
             perfil=perfil,
             ruta=ruta,
             defaults={
@@ -48,12 +49,17 @@ def seed_routes():
                 "delete_acc": delete,
             }
         )
+        if not created:
+            access.inserta_acc = inserta
+            access.update_acc = update
+            access.delete_acc = delete
+            access.save()
 
     if not admin_perfil:
          print("Asegúrate de atar tu superusuario a un Perfil de 'Admin' en el panel para tener acceso total explícito (aunque el middleware te lo perdone).")
     else:
         for r in rutas_creadas:
-            Access.objects.get_or_create(perfil=admin_perfil, ruta=r, defaults={"inserta_acc": 'S', "update_acc": 'S', "delete_acc": 'S'})
+            ensure_access(admin_perfil, r, inserta='S', update='S', delete='S')
         print("Accesos completos dados al Admin principal.")
 
     # Asignar accesos a perfiles existentes según su rol
@@ -64,15 +70,16 @@ def seed_routes():
         for ruta_url in trainer_route_urls:
             ruta = Route.objects.filter(url_rut=ruta_url).first()
             if ruta:
-                delete_perm = 'S' if ruta_url == '/clients/' else 'N'
+                delete_perm = 'S' if ruta_url in ['/clients/', '/trainer/schedule/'] else 'N'
                 ensure_access(perfil, ruta, inserta='S', update='S', delete=delete_perm)
 
     for perfil in Profile.objects.filter(rol=cliente_rol):
         for ruta_url in cliente_route_urls:
             ruta = Route.objects.filter(url_rut=ruta_url).first()
             if ruta:
+                insert_perm = 'S' if ruta_url == '/agenda/client/' else 'N'
                 update_perm = 'S' if ruta_url == '/agenda/session/' else 'N'
-                ensure_access(perfil, ruta, inserta='N', update=update_perm, delete='N')
+                ensure_access(perfil, ruta, inserta=insert_perm, update=update_perm, delete='N')
 
     print("Accesos básicos asignados a entrenadores y clientes existentes.")
 
