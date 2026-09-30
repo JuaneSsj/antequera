@@ -4,8 +4,9 @@
 <div style="max-width: 1200px; margin: 0 auto;">
     {% if is_admin_view %}
     <!-- Admin view: List all trainers -->
-    <div style="margin-bottom: 4rem;">
-        <h1 style="font-size: 3rem; margin-bottom: 2rem;">Todos los Entrenadores</h1>
+    <div style="margin-bottom: 4rem; display: flex; justify-content: space-between; align-items: center;">
+        <h1 style="font-size: 3rem; margin: 0;">Todos los Entrenadores</h1>
+        <a href="{% url 'trainer_create' %}" class="btn">Nuevo Entrenador</a>
     </div>
         <div class="table-responsive">
             <table>

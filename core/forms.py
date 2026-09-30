@@ -69,20 +69,8 @@ class BaseUserForm(forms.ModelForm):
             role, _ = Role.objects.get_or_create(nombre_rol=role_name)
             name_val = getattr(instance, 'name', None) or getattr(instance, 'full_name', 'Usuario')
             profile = Profile.objects.create(nombre_per=name_val, rol=role, usuario=user)
-            
-            # Asignar Rutas Estándar automáticamente
-            from .models import Route, Access
-            if role_name == 'Cliente':
-                rutas = ['/', '/clients/', '/agenda/client/', '/trainer/']
-            else:
-                rutas = ['/', '/clients/', '/clients/new/', '/agenda/trainer/', '/clients/archive/', '/trainer/']
-                
-            rutas_db = Route.objects.filter(url_rut__in=rutas)
-            for r in rutas_db:
-                delete_perm = 'S' if role_name == 'Entrenador' and r.url_rut == '/clients/' else 'N'
-                Access.objects.create(perfil=profile, ruta=r, inserta_acc='S', update_acc='S', delete_acc=delete_perm)
-            
             instance.perfil = profile
+            
             
         elif instance.perfil and getattr(instance.perfil, 'usuario', None):
             user = instance.perfil.usuario
@@ -106,7 +94,20 @@ class BaseUserForm(forms.ModelForm):
 
 class ClientForm(BaseUserForm):
     role_name = "Cliente"
-    
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        if user and user.is_authenticated:
+            is_admin = False
+            if user.is_superuser:
+                is_admin = True
+            elif hasattr(user, 'perfil_app') and user.perfil_app.rol:
+                if 'admin' in user.perfil_app.rol.nombre_rol.lower():
+                    is_admin = True
+            if not is_admin:
+                if 'entrenador_asignado' in self.fields:
+                    del self.fields['entrenador_asignado']
+                    
     class Meta:
         model = Client
         exclude = ['perfil']
@@ -123,11 +124,19 @@ class ClientForm(BaseUserForm):
 class MeasurementForm(forms.ModelForm):
     class Meta:
         model = Measurement
-        exclude = ['client', 'imc', 'imc_category', 'basal_metabolic_rate', 'total_caloric_expenditure']
+        exclude = ['client']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
             'rm_date': forms.DateInput(attrs={'type': 'date'}),
             'activity_level': forms.Select(attrs={'class': 'form-select'}),
+        }
+        labels = {
+            'fat_percentage': 'Porcentaje de Grasa (%) [Manual / Opcional]',
+            'colmen_fat_mass': 'Masa libre de grasa (kg) [Manual / Opcional]',
+        }
+        help_texts = {
+            'fat_percentage': 'Porcentaje medido manualmente (calibrador, báscula, etc.). Deja en blanco si no se midió.',
+            'colmen_fat_mass': 'Masa libre de grasa medida. Deja en blanco si no se dispone del dato.',
         }
 
 class TrainerForm(BaseUserForm):

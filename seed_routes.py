@@ -63,23 +63,14 @@ def seed_routes():
         print("Accesos completos dados al Admin principal.")
 
     # Asignar accesos a perfiles existentes según su rol
-    trainer_route_urls = ['/', '/clients/', '/clients/new/', '/agenda/trainer/', '/agenda/session/', '/clients/archive/', '/trainer/', '/trainer/schedule/']
-    cliente_route_urls = ['/', '/agenda/client/', '/agenda/session/', '/trainer/']
-
-    for perfil in Profile.objects.filter(rol=entrenador_rol):
-        for ruta_url in trainer_route_urls:
-            ruta = Route.objects.filter(url_rut=ruta_url).first()
+    from core.models import get_default_routes_for_role
+    for perfil in Profile.objects.all():
+        role_name = perfil.rol.nombre_rol
+        routes_perms = get_default_routes_for_role(role_name)
+        for url, perms in routes_perms.items():
+            ruta = Route.objects.filter(url_rut=url).first()
             if ruta:
-                delete_perm = 'S' if ruta_url in ['/clients/', '/trainer/schedule/'] else 'N'
-                ensure_access(perfil, ruta, inserta='S', update='S', delete=delete_perm)
-
-    for perfil in Profile.objects.filter(rol=cliente_rol):
-        for ruta_url in cliente_route_urls:
-            ruta = Route.objects.filter(url_rut=ruta_url).first()
-            if ruta:
-                insert_perm = 'S' if ruta_url == '/agenda/client/' else 'N'
-                update_perm = 'S' if ruta_url == '/agenda/session/' else 'N'
-                ensure_access(perfil, ruta, inserta=insert_perm, update=update_perm, delete='N')
+                ensure_access(perfil, ruta, inserta=perms['inserta'], update=perms['update'], delete=perms['delete'])
 
     print("Accesos básicos asignados a entrenadores y clientes existentes.")
 

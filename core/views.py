@@ -63,13 +63,41 @@ class HomeView(View):
             
         return render(request, 'core/home.html', context)
 
+def get_visible_clients(user, base_queryset=None):
+    if base_queryset is None:
+        base_queryset = Client.objects.all()
+    if not user.is_authenticated:
+        return base_queryset.none()
+    
+    is_admin = False
+    if user.is_superuser:
+        is_admin = True
+    elif hasattr(user, 'perfil_app') and user.perfil_app.rol:
+        rol_name = user.perfil_app.rol.nombre_rol.lower()
+        if 'admin' in rol_name:
+            is_admin = True
+            
+    if not is_admin and hasattr(user, 'perfil_app') and user.perfil_app.rol:
+        rol_name = user.perfil_app.rol.nombre_rol.lower()
+        if 'entrenador' in rol_name:
+            trainer = user.perfil_app.trainers.first()
+            if trainer:
+                return base_queryset.filter(entrenador_asignado=trainer)
+            else:
+                return base_queryset.none()
+        elif 'cliente' in rol_name:
+            return base_queryset.filter(perfil=user.perfil_app)
+            
+    return base_queryset
+
+
 class ClientListView(ListView):
     model = Client
     template_name = 'core/client_list.html'
     context_object_name = 'clients'
 
     def get_queryset(self):
-        qs = Client.objects.filter(is_active=True)
+        qs = get_visible_clients(self.request.user, Client.objects.filter(is_active=True))
         query = self.request.GET.get('q')
         if query:
             qs = qs.filter(full_name__icontains=query)
@@ -81,7 +109,7 @@ class ClientArchiveListView(ListView):
     context_object_name = 'clients'
 
     def get_queryset(self):
-        qs = Client.objects.filter(is_active=False)
+        qs = get_visible_clients(self.request.user, Client.objects.filter(is_active=False))
         query = self.request.GET.get('q')
         if query:
             qs = qs.filter(full_name__icontains=query)
@@ -90,7 +118,11 @@ class ClientArchiveListView(ListView):
 from django.http import HttpResponseRedirect
 
 def client_archive_toggle(request, pk):
-    client = get_object_or_404(Client, pk=pk)
+    if not request.user.is_superuser:
+        if not hasattr(request.user, 'perfil_app') or 'cliente' in request.user.perfil_app.rol.nombre_rol.lower():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("No tienes permiso para archivar clientes.")
+    client = get_object_or_404(get_visible_clients(request.user), pk=pk)
     client.is_active = not client.is_active
     client.save()
     if client.is_active:
@@ -102,6 +134,9 @@ class ClientDetailView(DetailView):
     model = Client
     template_name = 'core/client_detail.html'
     context_object_name = 'client'
+
+    def get_queryset(self):
+        return get_visible_clients(self.request.user)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -128,6 +163,11 @@ class ClientCreateView(CreateView):
     template_name = 'core/client_form.html'
     success_url = reverse_lazy('client_list')
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
     def form_valid(self, form):
         if hasattr(self.request.user, 'perfil_app'):
             trainer = self.request.user.perfil_app.trainers.first()
@@ -140,16 +180,31 @@ class ClientUpdateView(UpdateView):
     form_class = ClientForm
     template_name = 'core/client_form.html'
     
+    def get_queryset(self):
+        return get_visible_clients(self.request.user)
+        
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+    
     def get_success_url(self):
         return reverse_lazy('client_detail', kwargs={'pk': self.object.pk})
 
 class ClientDeleteView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_superuser:
+            if not hasattr(request.user, 'perfil_app') or 'cliente' in request.user.perfil_app.rol.nombre_rol.lower():
+                from django.http import HttpResponseForbidden
+                return HttpResponseForbidden("No tienes permiso para eliminar clientes.")
+        return super().dispatch(request, *args, **kwargs)
+
     def get(self, request, pk):
-        client = get_object_or_404(Client, pk=pk)
+        client = get_object_or_404(get_visible_clients(request.user), pk=pk)
         return render(request, 'core/client_confirm_delete.html', {'object': client})
 
     def post(self, request, pk):
-        client = get_object_or_404(Client, pk=pk)
+        client = get_object_or_404(get_visible_clients(request.user), pk=pk)
         client.is_active = False
         client.save()
         return redirect('client_list')
@@ -159,16 +214,23 @@ class MeasurementCreateView(CreateView):
     form_class = MeasurementForm
     template_name = 'core/measurement_form.html'
 
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_superuser:
+            if not hasattr(request.user, 'perfil_app') or 'cliente' in request.user.perfil_app.rol.nombre_rol.lower():
+                from django.http import HttpResponseForbidden
+                return HttpResponseForbidden("No tienes permiso para registrar mediciones.")
+        return super().dispatch(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         client_id = self.kwargs.get('client_id')
         if client_id:
-            context['client'] = get_object_or_404(Client, pk=client_id)
+            context['client'] = get_object_or_404(get_visible_clients(self.request.user), pk=client_id)
         return context
 
     def form_valid(self, form):
         client_id = self.kwargs.get('client_id')
-        form.instance.client = get_object_or_404(Client, pk=client_id)
+        form.instance.client = get_object_or_404(get_visible_clients(self.request.user), pk=client_id)
         return super().form_valid(form)
 
     def get_success_url(self):
@@ -179,9 +241,23 @@ class ClientImageCreateView(CreateView):
     form_class = ClientImageForm
     template_name = 'core/image_form.html'
     
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_superuser:
+            if not hasattr(request.user, 'perfil_app') or 'cliente' in request.user.perfil_app.rol.nombre_rol.lower():
+                from django.http import HttpResponseForbidden
+                return HttpResponseForbidden("No tienes permiso para registrar fotos de progreso.")
+        return super().dispatch(request, *args, **kwargs)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        client_id = self.kwargs.get('client_id')
+        if client_id:
+            context['client'] = get_object_or_404(get_visible_clients(self.request.user), pk=client_id)
+        return context
+    
     def form_valid(self, form):
         client_id = self.kwargs.get('client_id')
-        form.instance.client = get_object_or_404(Client, pk=client_id)
+        form.instance.client = get_object_or_404(get_visible_clients(self.request.user), pk=client_id)
         return super().form_valid(form)
         
     def get_success_url(self):
@@ -226,8 +302,16 @@ class TrainerCreateView(CreateView):
     success_url = reverse_lazy('trainer_detail')
 
     def dispatch(self, request, *args, **kwargs):
-        # Specific check: if a trainer already exists, redirect to detail
-        if Trainer.objects.exists() and not request.user.is_superuser:
+        # Allow superuser and users with "Admin" role to create trainers
+        is_admin = False
+        if request.user.is_authenticated:
+            if request.user.is_superuser:
+                is_admin = True
+            elif hasattr(request.user, 'perfil_app') and request.user.perfil_app.rol:
+                if 'admin' in request.user.perfil_app.rol.nombre_rol.lower():
+                    is_admin = True
+                    
+        if not is_admin:
             return redirect('trainer_detail')
         return super().dispatch(request, *args, **kwargs)
 

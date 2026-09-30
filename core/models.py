@@ -63,10 +63,14 @@ class Trainer(models.Model):
     def __str__(self):
         return self.name
 
-    @property
-    def age(self):
-        today = date.today()
-        return today.year - self.birth_date.year - ((today.month, today.day) < (self.birth_date.month, self.birth_date.day))
+    # ⚠️ ATENCIÓN: La propiedad 'age' hace referencia a self.birth_date, 
+    # pero el modelo Trainer no tiene ese campo. Se heredó del modelo Client por error.
+    # Se debe agregar un campo birth_date o eliminar esta propiedad.
+    # La dejo comentada para evitar errores en tiempo de ejecución.
+    # @property
+    # def age(self):
+    #     today = date.today()
+    #     return today.year - self.birth_date.year - ((today.month, today.day) < (self.birth_date.month, self.birth_date.day))
 
 class Client(models.Model):
     GENDER_CHOICES = [
@@ -134,14 +138,10 @@ class Measurement(models.Model):
     date = models.DateField("Fecha de control", default=date.today)
     
     # DATOS ANTROPOMÉTRICOS AND GCT
-    height = models.DecimalField("Talla (cm)", max_digits=5, decimal_places=2, help_text="Centímetros")
-    weight = models.DecimalField("Peso (kg)", max_digits=5, decimal_places=2, help_text="Kg")
-    imc = models.DecimalField("IMC", max_digits=5, decimal_places=2, blank=True, null=True)
-    imc_category = models.CharField("Categoría IMC", max_length=100, blank=True)
+    height = models.DecimalField("Talla (cm)", max_digits=5, decimal_places=2, blank=True, null=True, help_text="Centímetros")
+    weight = models.DecimalField("Peso (kg)", max_digits=5, decimal_places=2, blank=True, null=True, help_text="Kg")
     
     activity_level = models.CharField("Nivel de Actividad", max_length=10, choices=ACTIVITY_LEVEL_CHOICES, default='1.2')
-    basal_metabolic_rate = models.DecimalField("Tasa Metabólica Basal (MB)", max_digits=6, decimal_places=0, blank=True, null=True, help_text="Kcal")
-    total_caloric_expenditure = models.DecimalField("Gasto Calórico Total (GCT)", max_digits=6, decimal_places=0, blank=True, null=True, help_text="Kcal")
 
     fat_percentage = models.DecimalField("Porcentaje de grasa corporal (%)", max_digits=5, decimal_places=2, blank=True, null=True)
     colmen_fat_mass = models.DecimalField("Masa libre de grasa (kg)", max_digits=5, decimal_places=2, blank=True, null=True)
@@ -163,46 +163,59 @@ class Measurement(models.Model):
     def __str__(self):
         return f"{self.client.full_name} - {self.date}"
 
-    def save(self, *args, **kwargs):
-        # Calculate IMC automatically
+    # ------------------------------------------------------------
+    # PROPIEDADES CALCULADAS (no se almacenan, cumplen 3FN)
+    # ------------------------------------------------------------
+    @property
+    def imc(self):
+        """Índice de Masa Corporal calculado en tiempo real."""
         if self.height and self.weight:
-            # Convert height from cm to meters for BMI calculation
             height_m = float(self.height) / 100
             weight_kg = float(self.weight)
-            self.imc = weight_kg / (height_m * height_m)
-            
-            # Basic IMC Category logic
-            if self.imc < 18.5:
-                self.imc_category = "Bajo peso"
-            elif 18.5 <= self.imc < 24.9:
-                self.imc_category = "Normal"
-            elif 25 <= self.imc < 29.9:
-                self.imc_category = "Sobrepeso"
-            else:
-                self.imc_category = "Obesidad"
+            return weight_kg / (height_m * height_m)
+        return None
 
-            # Calculate MB (GCT Step 1)
-            # Mifflin-St Jeor Formula
-            # Men: (10 × weight) + (6.25 × height) − (5 × age) + 5
-            # Women: (10 × weight) + (6.25 × height) − (5 × age) − 161
-            
-            age = self.client.age
-            height_cm = float(self.height)
-            
-            mb = (10 * weight_kg) + (6.25 * height_cm) - (5 * age)
-            
-            if self.client.gender == 'M':
-                mb += 5
-            else:
-                mb -= 161
-            
-            self.basal_metabolic_rate = mb
-            
-            # Calculate GCT (Step 2 & 3)
-            activity_factor = float(self.activity_level)
-            self.total_caloric_expenditure = mb * activity_factor
+    @property
+    def imc_category(self):
+        """Categoría del IMC según la OMS."""
+        imc_val = self.imc
+        if imc_val is None:
+            return ""
+        if imc_val < 18.5:
+            return "Bajo peso"
+        elif imc_val < 25:
+            return "Normal"
+        elif imc_val < 30:
+            return "Sobrepeso"
+        else:
+            return "Obesidad"
 
-        super().save(*args, **kwargs)
+    @property
+    def basal_metabolic_rate(self):
+        """Tasa Metabólica Basal (Mifflin‑St Jeor)."""
+        if not (self.height and self.weight and self.client_id):
+            return None
+        weight_kg = float(self.weight)
+        height_cm = float(self.height)
+        age = self.client.age  # propiedad del cliente
+        mb = (10 * weight_kg) + (6.25 * height_cm) - (5 * age)
+        if self.client.gender == 'M':
+            mb += 5
+        else:
+            mb -= 161
+        return round(mb, 0)
+
+    @property
+    def total_caloric_expenditure(self):
+        """Gasto Calórico Total (GCT) basado en TMB y nivel de actividad."""
+        tmb = self.basal_metabolic_rate
+        if tmb is None:
+            return None
+        try:
+            factor = float(self.activity_level)
+        except (ValueError, TypeError):
+            return None
+        return round(tmb * factor, 0)
 
 class ClientImage(models.Model):
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='images')
@@ -273,3 +286,57 @@ class TrainerSchedule(models.Model):
 
     def __str__(self):
         return f"{self.get_day_of_week_display()} de {self.start_time.strftime('%H:%M')} a {self.end_time.strftime('%H:%M')}"
+
+
+def get_default_routes_for_role(role_name):
+    if role_name == 'Cliente':
+        return {
+            '/': {'inserta': 'S', 'update': 'S', 'delete': 'N'},
+            '/clients/': {'inserta': 'N', 'update': 'S', 'delete': 'N'},
+            '/agenda/client/': {'inserta': 'S', 'update': 'N', 'delete': 'N'},
+            '/agenda/session/': {'inserta': 'N', 'update': 'S', 'delete': 'N'},
+            '/trainer/': {'inserta': 'S', 'update': 'S', 'delete': 'N'},
+        }
+    elif role_name == 'Entrenador':
+        return {
+            '/': {'inserta': 'S', 'update': 'S', 'delete': 'N'},
+            '/clients/': {'inserta': 'S', 'update': 'S', 'delete': 'S'},
+            '/clients/new/': {'inserta': 'S', 'update': 'S', 'delete': 'N'},
+            '/agenda/trainer/': {'inserta': 'S', 'update': 'S', 'delete': 'N'},
+            '/agenda/session/': {'inserta': 'S', 'update': 'S', 'delete': 'N'},
+            '/clients/archive/': {'inserta': 'S', 'update': 'S', 'delete': 'N'},
+            '/trainer/': {'inserta': 'S', 'update': 'S', 'delete': 'N'},
+            '/trainer/schedule/': {'inserta': 'S', 'update': 'S', 'delete': 'S'},
+        }
+    elif role_name == 'Admin':
+        try:
+            return {
+                r.url_rut: {'inserta': 'S', 'update': 'S', 'delete': 'S'}
+                for r in Route.objects.all()
+            }
+        except Exception:
+            return {}
+    return {}
+
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+@receiver(post_save, sender=Profile)
+def assign_default_access_to_profile(sender, instance, created, **kwargs):
+    if created:
+        role_name = instance.rol.nombre_rol
+        routes_perms = get_default_routes_for_role(role_name)
+        for url, perms in routes_perms.items():
+            ruta = Route.objects.filter(url_rut=url).first()
+            if ruta:
+                Access.objects.get_or_create(
+                    perfil=instance,
+                    ruta=ruta,
+                    defaults={
+                        'inserta_acc': perms['inserta'],
+                        'update_acc': perms['update'],
+                        'delete_acc': perms['delete'],
+                    }
+                )
+

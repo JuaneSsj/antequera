@@ -4,6 +4,12 @@
 <div class="card" style="max-width: 800px; margin: 0 auto;">
     <h2>Registrar Medición {% if client %}para {{ client.full_name }}{% endif %}</h2>
 
+    <div style="background: rgba(34, 211, 238, 0.1); border-left: 4px solid var(--accent); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+        <p style="font-size: 0.95rem; color: var(--text-primary); margin: 0; line-height: 1.5;">
+            <strong>ℹ️ Nota:</strong> El <strong>IMC</strong> (Índice de Masa Corporal), la <strong>Tasa Metabólica Basal (TMB)</strong> y el <strong>Gasto Calórico Total (GCT)</strong> se calculan <strong>automáticamente</strong> en tiempo real al guardar el Peso y la Talla. No necesitas ingresarlos.
+        </p>
+    </div>
+
     <form method="post">
         {% csrf_token %}
 

@@ -48,9 +48,9 @@ DB_NAME=nombre_base_datos
 DB_USER=usuario_base_datos
 DB_PASSWORD=contraseña_base_datos
 DB_HOST=localhost
-DB_PORT=5432
+DB_PORT=3306
 ```
-*Asegúrate de tener PostgreSQL instalado y configurado.*
+*Asegúrate de tener MySQL instalado y configurado.*
 
 ### 5. Migraciones de Base de Datos
 
@@ -70,7 +70,7 @@ python manage.py createsuperuser
 
 ### 7. Cargar las rutas y permisos iniciales
 
-Ejecuta el script de seed para registrar las rutas y permisos que usa el middleware del proyecto.
+Ejecuta el script de semillado (se debe correr la primera vez que configuras el proyecto, o cuando se agreguen nuevas URLs/rutas) para registrar las rutas y permisos en la base de datos:
 
 ```bash
 python seed_routes.py
@@ -99,5 +99,5 @@ Abre tu navegador en [http://127.0.0.1:8000/](http://127.0.0.1:8000/).
 ## 🛠️ Tecnologías
 
 - Python / Django 5+
-- PostgreSQL
+- MySQL
 - HTML / CSS / JavaScript

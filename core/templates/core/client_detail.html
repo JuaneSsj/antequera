@@ -66,11 +66,17 @@
                 <div class="stat-label">Peso</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value">{{ latest_measurement.imc }}</div>
+                <div class="stat-value">{{ latest_measurement.imc|floatformat:1 }}</div>
                 <div class="stat-label">IMC</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value">{{ latest_measurement.fat_percentage|default:"--" }}%</div>
+                <div class="stat-value">
+                    {% if latest_measurement.fat_percentage %}
+                        {{ latest_measurement.fat_percentage|floatformat:1 }}%
+                    {% else %}
+                        --
+                    {% endif %}
+                </div>
                 <div class="stat-label">% Grasa</div>
             </div>
             <div class="stat-card">
@@ -117,8 +123,8 @@
                 <tr>
                     <td>{{ m.date }}</td>
                     <td>{{ m.weight }} kg</td>
-                    <td>{{ m.imc }}</td>
-                    <td>{{ m.fat_percentage|default:"-" }}</td>
+                    <td>{{ m.imc|floatformat:1 }}</td>
+                    <td>{% if m.fat_percentage %}{{ m.fat_percentage|floatformat:1 }}%{% else %}-{% endif %}</td>
                     <td>{{ m.basal_metabolic_rate|default:"-" }}</td>
                     <td style="font-weight: bold; color: var(--accent);">{{ m.total_caloric_expenditure|default:"-" }}
                     </td>

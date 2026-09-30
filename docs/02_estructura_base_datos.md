@@ -12,11 +12,11 @@ Extiende el modelo `User` nativo de Django para manejar perfiles y roles persona
 Es el núcleo del modelo de negocio.
 - **Trainer (Entrenador)**: Tiene información de contacto, biografía y foto. Se vincula opcionalmente a un `Profile` para que el entrenador pueda iniciar sesión.
 - **Client (Cliente)**: Contiene la información personal, contexto deportivo, objetivos y miedos. Un cliente **tiene un Entrenador asignado** y está vinculado a un `Profile` para su propio acceso.
-- **Measurement (Medidas)**: Un cliente tiene múltiples mediciones en el tiempo. El modelo calcula de manera **automática** antes de guardar:
-  - IMC y Categoría IMC.
-  - Tasa Metabólica Basal (MB) usando la fórmula de Mifflin-St Jeor.
-  - Gasto Calórico Total (GCT) basado en el nivel de actividad.
-  - También registra el 1RM (Repetición Máxima) en ejercicios clave.
+- **Measurement (Medidas)**: Un cliente tiene múltiples mediciones en el tiempo. Para cumplir con la **Tercera Forma Normal (3FN)** y evitar redundancias físicas, los campos calculados no se guardan en la base de datos, sino que se exponen dinámicamente mediante `@property` en tiempo de ejecución:
+  - IMC y Categoría IMC (OMS).
+  - Tasa Metabólica Basal (TMB) usando la fórmula de Mifflin-St Jeor.
+  - Gasto Calórico Total (GCT) combinando la TMB y el nivel de actividad física.
+  - También registra el 1RM (Repetición Máxima) en ejercicios clave de forma manual.
 - **ClientImage (Imágenes)**: Permite registrar múltiples fotos de progreso de un cliente a lo largo del tiempo.
 
 ## 3. Agenda y Notificaciones

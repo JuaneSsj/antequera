@@ -14,7 +14,7 @@ Para mantener este resumen conciso, la información detallada se ha dividido en 
 
 ## 🛠️ Stack Tecnológico
 - **Backend:** Python con Django (Versión 5.x/6.x)
-- **Base de Datos:** PostgreSQL (Configurada vía variables de entorno)
+- **Base de Datos:** MySQL (Configurada vía variables de entorno)
 - **Frontend:** Django Templates (HTML/CSS/JS) con un diseño dinámico.
 - **Despliegue/Entorno:** Gestión de variables de entorno mediante `python-dotenv`.
 
